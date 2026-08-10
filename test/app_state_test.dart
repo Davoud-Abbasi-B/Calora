@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:calorie_tracker/app.dart';
 import 'package:calorie_tracker/data/local/local_storage_service.dart';
+import 'package:calorie_tracker/features/activation/models/activation_models.dart';
+import 'package:calorie_tracker/features/activation/providers/activation_provider.dart';
 import 'package:calorie_tracker/features/nutrition/models/daily_nutrition_model.dart';
 import 'package:calorie_tracker/features/nutrition/models/food_analysis_result.dart';
 import 'package:calorie_tracker/features/nutrition/providers/today_journal_provider.dart';
@@ -20,7 +22,10 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [calorieTargetsProvider.overrideWith(_NoTargets.new)],
+        overrides: [
+          activationProvider.overrideWith(_Activated.new),
+          calorieTargetsProvider.overrideWith(_NoTargets.new),
+        ],
         child: const CalorieTrackerApp(),
       ),
     );
@@ -38,7 +43,10 @@ void main() {
   testWidgets('Material app uses the Calora brand title', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [calorieTargetsProvider.overrideWith(_NoTargets.new)],
+        overrides: [
+          activationProvider.overrideWith(_Activated.new),
+          calorieTargetsProvider.overrideWith(_NoTargets.new),
+        ],
         child: const CalorieTrackerApp(),
       ),
     );
@@ -51,7 +59,10 @@ void main() {
   testWidgets('first launch without targets shows onboarding', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [calorieTargetsProvider.overrideWith(_NoTargets.new)],
+        overrides: [
+          activationProvider.overrideWith(_Activated.new),
+          calorieTargetsProvider.overrideWith(_NoTargets.new),
+        ],
         child: const CalorieTrackerApp(),
       ),
     );
@@ -269,4 +280,11 @@ DailyNutritionEntry _entry(String id) => DailyNutritionEntry(
 class _NoTargets extends CalorieTargetsNotifier {
   @override
   CalorieTargets? build() => null;
+}
+
+class _Activated extends ActivationNotifier {
+  @override
+  ActivationViewState build() => const ActivationViewState(
+    activation: ActivationRecord(username: 'existing', deviceId: 'device-id'),
+  );
 }

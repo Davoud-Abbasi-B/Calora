@@ -15,6 +15,7 @@ Future<void> main() async {
 
 Future<void> _initializeApplication() async {
   final storage = await LocalStorageService.initialize();
+  await storage.ensureActivationDeviceId();
   await initializeDateFormatting('fa');
   final reconciliation = NutritionDayReconciliationService(storage: storage);
   await reconciliation.snapshotTodayIfNeeded();

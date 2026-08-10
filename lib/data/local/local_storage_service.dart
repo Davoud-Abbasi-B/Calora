@@ -1,12 +1,15 @@
+import 'dart:math';
+
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../features/activation/models/activation_models.dart';
 import '../../features/nutrition/models/daily_nutrition_model.dart';
 import '../../features/nutrition/services/local_food_database_service.dart';
 import '../../features/nutrition/services/persian_food_parser.dart';
 import '../../features/settings/models/calorie_targets.dart';
 import 'storage_keys.dart';
 
-class LocalStorageService {
+class LocalStorageService implements ActivationStore {
   LocalStorageService(this._box);
 
   static const boxName = 'calorie_tracker';
@@ -28,6 +31,30 @@ class LocalStorageService {
   }
 
   final Box<dynamic> _box;
+
+  @override
+  ActivationRecord? loadActivation() =>
+      ActivationRecord.fromJson(_stringMap(_box.get(StorageKeys.activation)));
+
+  @override
+  Future<String> ensureActivationDeviceId({
+    String Function()? generator,
+  }) async {
+    final stored = _stringMap(_box.get(StorageKeys.activation));
+    final existing = stored?['deviceId'];
+    if (existing is String && existing.trim().isNotEmpty) return existing;
+    final deviceId = (generator ?? _generateUuidV4)();
+    await _box.put(StorageKeys.activation, {
+      ...?stored,
+      'deviceId': deviceId,
+      'isActivated': stored?['isActivated'] == true,
+    });
+    return deviceId;
+  }
+
+  @override
+  Future<void> saveActivation(ActivationRecord activation) =>
+      _box.put(StorageKeys.activation, activation.toJson());
 
   Future<void> saveCalorieTargets(CalorieTargets targets) =>
       _box.put(StorageKeys.calorieTargets, targets.toJson());
@@ -193,6 +220,19 @@ class LocalStorageService {
 
   Map<String, dynamic> _mapValue(String key) =>
       _stringMap(_box.get(key)) ?? <String, dynamic>{};
+}
+
+String _generateUuidV4() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final value = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${value.substring(0, 8)}-${value.substring(8, 12)}-'
+      '${value.substring(12, 16)}-${value.substring(16, 20)}-'
+      '${value.substring(20)}';
 }
 
 Map<String, dynamic>? _stringMap(Object? value) {

@@ -7,4 +7,5 @@ abstract final class StorageKeys {
   static const usdaFoodSearchCache = 'usda_food_search_cache';
   static const foodTranslationCache = 'food_translation_cache';
   static const customFoods = 'custom_foods';
+  static const activation = 'activation';
 }
