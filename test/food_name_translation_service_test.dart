@@ -64,6 +64,58 @@ void main() {
     expect(device.translateCalls, 1);
   });
 
+  test('service stays lazy until a translation is requested', () async {
+    final device = _TrackingTranslator();
+    CachedFoodNameTranslationService(
+      cache: MemoryFoodTranslationCacheService(),
+      onDeviceTranslator: device,
+    );
+
+    await Future<void>.delayed(Duration.zero);
+
+    expect(device.events, isEmpty);
+  });
+
+  test('translation starts only after model download succeeds', () async {
+    final device = _TrackingTranslator();
+    final service = CachedFoodNameTranslationService(
+      cache: MemoryFoodTranslationCacheService(),
+      onDeviceTranslator: device,
+    );
+
+    final result = await service.translateFoodName('خوراک آزمایشی ویژه');
+
+    expect(result.translatedText, 'test food');
+    expect(device.events, [
+      'availability',
+      'download:start',
+      'download:success',
+      'translate',
+    ]);
+  });
+
+  test(
+    'different concurrent requests share the active model download',
+    () async {
+      final device = _Translator(
+        'test food',
+        delay: const Duration(milliseconds: 10),
+      );
+      final service = CachedFoodNameTranslationService(
+        cache: MemoryFoodTranslationCacheService(),
+        onDeviceTranslator: device,
+      );
+
+      await Future.wait([
+        service.translateFoodName('خوراک آزمایشی اول'),
+        service.translateFoodName('خوراک آزمایشی دوم'),
+      ]);
+
+      expect(device.downloadCalls, 1);
+      expect(device.translateCalls, 2);
+    },
+  );
+
   test(
     'platform diagnostics are not exposed in translation warnings',
     () async {
@@ -167,6 +219,37 @@ class _Translator implements OnDeviceFoodNameTranslator {
     translateCalls++;
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     return output;
+  }
+
+  @override
+  Future<void> deleteModels() async => ready = false;
+}
+
+class _TrackingTranslator implements OnDeviceFoodNameTranslator {
+  final events = <String>[];
+  var ready = false;
+
+  @override
+  Future<OnDeviceTranslationAvailability> availability() async {
+    events.add('availability');
+    return OnDeviceTranslationAvailability(
+      isSupported: true,
+      modelsReady: ready,
+    );
+  }
+
+  @override
+  Future<void> ensureModelsDownloaded() async {
+    events.add('download:start');
+    await Future<void>.delayed(Duration.zero);
+    ready = true;
+    events.add('download:success');
+  }
+
+  @override
+  Future<String> translate(String persianFoodName) async {
+    events.add('translate');
+    return 'test food';
   }
 
   @override

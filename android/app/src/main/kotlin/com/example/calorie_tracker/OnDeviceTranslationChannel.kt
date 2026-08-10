@@ -8,7 +8,6 @@ import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.common.MlKitException
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.model.RemoteModelManager
-import com.google.mlkit.common.sdkinternal.MlKitContext
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translation
@@ -183,8 +182,10 @@ internal class OnDeviceTranslationChannel(
             manager.deleteDownloadedModel(sourceModel),
             manager.deleteDownloadedModel(targetModel),
         ).addOnSuccessListener {
+            debugLog("model_delete=succeeded")
             result.success(null)
-        }.addOnFailureListener {
+        }.addOnFailureListener { exception ->
+            debugLogException("model_delete=failed", exception)
             result.error(
                 TranslationChannelErrors.MODEL_DELETE_FAILED,
                 "Translation models could not be deleted.",
@@ -219,12 +220,6 @@ internal class OnDeviceTranslationChannel(
 
     private fun getTranslator(languages: Pair<String, String>): Translator {
         translator?.let { return it }
-        // Some OEM builds have the manifest provider present but its component
-        // context is not ready when the first ML Kit client is requested. This
-        // is deliberately lazy and runs only after a user-triggered download or
-        // translation request.
-        MlKitContext.initializeIfNeeded(applicationContext)
-        debugLog("translator_init=context_ready")
         val options = TranslatorOptions.Builder()
             .setSourceLanguage(languages.first)
             .setTargetLanguage(languages.second)
